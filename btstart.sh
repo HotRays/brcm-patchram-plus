@@ -1,7 +1,7 @@
 #!/bin/sh
 
 /usr/bin/brcm_patchram_plus \
-    --patchram /lib/firmware/brcm/bcm4335c0.hcd \
+    --patchram /lib/firmware/brcm/bcm4345c0.hcd \
     --baudrate 3000000 \
     --enable_lpm \
     --enable_hci \
