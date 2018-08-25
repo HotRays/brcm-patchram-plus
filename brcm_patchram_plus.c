@@ -102,8 +102,6 @@
 **  
 ******************************************************************************/
 
-// TODO: Integrate BCM support into Bluez hciattach
-
 #include <stdio.h>
 #include <getopt.h>
 #include <errno.h>
@@ -130,10 +128,10 @@
 #define LOG_TAG "brcm_patchram_plus"
 #include <cutils/log.h>
 #undef printf
-#define printf ALOGD
+#define printf LOGD
 #undef fprintf
 #define fprintf(x, ...) \
-  { if(x==stderr) ALOGE(__VA_ARGS__); else fprintf(x, __VA_ARGS__); }
+  { if(x==stderr) LOGE(__VA_ARGS__); else fprintf(x, __VA_ARGS__); }
 
 #endif //ANDROID
 
@@ -165,6 +163,7 @@ int scopcm = 0;
 int i2s = 0;
 int no2bytes = 0;
 int tosleep = 0;
+int baudrate = 0;
 
 struct termios termios;
 uchar buffer[1024];
@@ -191,6 +190,9 @@ uchar hci_write_pcm_data_format[] =
 
 uchar hci_write_i2spcm_interface_param[] =
 	{ 0x01, 0x6d, 0xFC, 0x04, 0x00, 0x00, 0x00, 0x00 };
+
+uchar hci_write_uart_clock_setting_48Mhz[] =
+	{ 0x01, 0x45, 0xfc, 0x01, 0x01 };
 
 int
 parse_patchram(char *optarg)
@@ -273,10 +275,12 @@ validate_baudrate(int baud_rate, int *value)
 int
 parse_baudrate(char *optarg)
 {
-	int baudrate = atoi(optarg);
+	baudrate = atoi(optarg);
 
 	if (validate_baudrate(baudrate, &termios_baudrate)) {
 		BRCM_encode_baud_rate(baudrate, &hci_update_baud_rate[6]);
+	} else {
+		return(1);
 	}
 
 	return(0);
@@ -514,7 +518,7 @@ parse_cmd_line(int argc, char **argv)
 			printf ("%s \n", argv[optind]);
 		if ((uart_fd = open(argv[optind], O_RDWR | O_NOCTTY)) == -1) {
 			fprintf(stderr, "port %s could not be opened, error %d\n",
-					argv[2], errno);
+					argv[optind], errno);
 		}
 	}
 
@@ -666,6 +670,14 @@ proc_patchram()
 void
 proc_baudrate()
 {
+
+	if (baudrate > 3000000) {
+		hci_send_cmd(hci_write_uart_clock_setting_48Mhz,
+			sizeof(hci_write_uart_clock_setting_48Mhz));
+
+		read_event(uart_fd, buffer);
+	}
+
 	hci_send_cmd(hci_update_baud_rate, sizeof(hci_update_baud_rate));
 
 	read_event(uart_fd, buffer);
